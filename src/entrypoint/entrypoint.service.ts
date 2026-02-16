@@ -1,26 +1,42 @@
 import { Injectable } from '@nestjs/common';
-import { CreateEntrypointDto } from './dto/create-entrypoint.dto';
-import { UpdateEntrypointDto } from './dto/update-entrypoint.dto';
+import { CreateRegistrantDto } from './dto/create-registrant.dto';
+import { AuthService } from '../auth/auth.service';
+import { UsersService } from 'src/users/users.service';
+import { JwtPayloadDto } from './dto/jwt-payload.dto';
 
 @Injectable()
 export class EntrypointService {
-  create(createEntrypointDto: CreateEntrypointDto) {
-    return 'This action adds a new entrypoint';
-  }
+  constructor(
+    private authService: AuthService,
+    private usersServise: UsersService
+  ) {}
 
-  findAll() {
-    return `This action returns all entrypoint`;
-  }
+  async userRegister(regApi:CreateRegistrantDto) {
+   const hashRegApi = await this.authService.hashRegistrant(regApi)
 
-  findOne(id: number) {
-    return `This action returns a #${id} entrypoint`;
-  }
+    const userName = hashRegApi.username
+    const email = hashRegApi.email
 
-  update(id: number, updateEntrypointDto: UpdateEntrypointDto) {
-    return `This action updates a #${id} entrypoint`;
-  }
+    const emailAnswer = await this.usersServise.checkEmailExists(email)
+    if(emailAnswer) return false
 
-  remove(id: number) {
-    return `This action removes a #${id} entrypoint`;
+    const userAnswer = await this.usersServise.checkUsernameExists(userName)
+    if(userAnswer) return false
+
+    const userId = await this.usersServise.createUser(hashRegApi)
+    if(!userId) return false
+
+    const sessionId = this.authService.generateCompactSessionId()
+
+    const payload:JwtPayloadDto = {
+      userId: userId.id,
+      sessionId: sessionId
+    }
+
+    const refreshToken = this.authService.generateRefreshToken(payload)
+    const accessToken = this.authService.generateAccessToken(payload)
+
+
+    
   }
 }

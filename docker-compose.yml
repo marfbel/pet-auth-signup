@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  mongo-users:
+    image: mongo:latest
+    container_name: mongo-users
+    restart: unless-stopped
+    ports:
+      - "${MONGO_USERS_PORT}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERS_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_USERS_PASS}
+      MONGO_INITDB_DATABASE: ${MONGO_USERS_DB}
+    volumes:
+      - mongo_users_data:/data/db
+
+
+  redis:
+    image: redis:8.2
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+
+volumes:
+  mongo_users_data:
+    driver: local
+  redis_data:
+    driver: local
+
