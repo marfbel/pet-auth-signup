@@ -11,8 +11,8 @@ export class User {
   @Prop({ required: true })
   passwordHash: string;
 
-@Prop({ required: true, unique: true })
-username: string;
+  @Prop({ required: true, unique: true })
+  username: string;
 
   @Prop({ default: Date.now })
   createdAt: Date;

@@ -1,17 +1,15 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { mongoUsersConfig } from './mongo-users.config';
+import { MongoUsersModule } from './mongo-users.module';
+import { RedisModule } from './redis.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // подключаем .env глобально
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: mongoUsersConfig,
-    }),
+    MongoUsersModule, // MongoDB
+    RedisModule,      // Redis
   ],
-  exports: [MongooseModule],
+  exports: [
+    MongoUsersModule,
+    RedisModule,
+  ],
 })
 export class DatabaseModule {}
