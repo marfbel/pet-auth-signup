@@ -8,6 +8,13 @@ import { UserObjectDto } from './dto/user-object.dto';
 
 export type UserIdResult = { id: string } | false;
 
+export interface UserWithoutSensitiveData {
+  id: string;
+  email: string;
+  username: string;
+  createdAt: Date;
+}
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -224,6 +231,32 @@ export class UsersService {
       }
       this.logger.error('Error in findByUsername: ' + errorMessage);
       return false;
+    }
+  }
+
+  /**
+   * Возвращает всех пользователей из базы (без passwordHash).
+   * Используется для технического мониторинга/отладки.
+   */
+  async findAll(): Promise<UserWithoutSensitiveData[]> {
+    try {
+      const users = await this.userModel.find({}).select('-passwordHash').exec();
+      const result: UserWithoutSensitiveData[] = users.map((user) => ({
+        id: user._id.toString(),
+        email: user.email,
+        username: user.username,
+        createdAt: user.createdAt,
+      }));
+      return result;
+    } catch (error: unknown) {
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = 'Unknown error';
+      }
+      this.logger.error('Error in findAll: ' + errorMessage);
+      return [];
     }
   }
 }

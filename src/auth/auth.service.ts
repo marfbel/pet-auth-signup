@@ -124,5 +124,23 @@ export class AuthService {
     }
   }
 
+  /**
+   * Получает все сессии из Redis.
+   * Используется для технического мониторинга/отладки.
+   * @returns массив всех сессий
+   */
+  async getAllSessions(): Promise<{ refreshToken: string; userId: string; sessionId: string }[]> {
+    return this.tokenService.getAllSessions();
+  }
+
+  /**
+   * Удаляет все сессии пользователя из Redis по userId.
+   * Используется для logout со всех устройств.
+   * @returns количество удалённых сессий
+   */
+  async deleteAllUserSessions(userId: string): Promise<number> {
+    return this.tokenService.deleteSessionsByUserId(userId);
+  }
+
 
 }
