@@ -4,6 +4,9 @@ import { EntrypointService } from './entrypoint.service';
 import { CreateRegistrantDto } from './dto/create-registrant.dto';
 import { UsersService } from '../users/users.service';
 import { CreateLoginDto } from './dto/create-login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
+import { ChangeUsernameDto } from './dto/change-username.dto';
 
 
 @Controller('entrypoint')
@@ -36,7 +39,6 @@ export class EntrypointController {
 
     return { accessToken };
   }
-
   @Post('login')
   async login(
     @Body() createLoginDto: CreateLoginDto,
@@ -58,6 +60,41 @@ export class EntrypointController {
   }
 
   /**
+   * POST /entrypoint/change-password
+   * Смена пароля пользователя
+   * @body { accessToken: string, newPassword: string }
+   * @returns true - успех
+   */
+  @Post('change-password')
+  async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+    return this.entrypointService.changePassword(changePasswordDto);
+  }
+
+  /**
+   * POST /entrypoint/change-email
+   * Смена email пользователя
+   * @body { accessToken: string, newEmail: string }
+   * @returns true - успех
+   */
+  @Post('change-email')
+  async changeEmail(@Body() changeEmailDto: ChangeEmailDto) {
+    return this.entrypointService.changeEmail(changeEmailDto);
+  }
+
+  /**
+   * POST /entrypoint/change-username
+   * Смена username пользователя
+   * @body { accessToken: string, newUsername: string }
+   * @returns true - успех
+   */
+  @Post('change-username')
+  async changeUsername(@Body() changeUsernameDto: ChangeUsernameDto) {
+    return this.entrypointService.changeUsername(changeUsernameDto);
+  }
+
+
+  
+  /**
    * POST /entrypoint/logout
    * Удаление сессии пользователя по refreshToken (logout с текущего устройства)
    * @body { refreshToken: string }
@@ -67,6 +104,23 @@ export class EntrypointController {
   async logout(@Body() body: { refreshToken: string }) {
     return this.entrypointService.userLogout(body.refreshToken);
   }
+
+
+
+
+  /**
+   * POST /entrypoint/refresh
+   * Обновление access token по refresh token
+   * @body { refreshToken: string }
+   * @returns { accessToken: string } - новый access token
+   */
+  @Post('refresh')
+  async refresh(@Body() body: { refreshToken: string }) {
+    return this.entrypointService.refreshTokens(body.refreshToken);
+  }
+
+
+
 
 
 

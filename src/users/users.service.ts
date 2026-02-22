@@ -259,4 +259,79 @@ export class UsersService {
       return [];
     }
   }
+
+  /**
+   * Обновляет пароль пользователя по id.
+   * Если успешно — возвращает true.
+   * Если пользователь не найден или ошибка — возвращает false.
+   */
+  async updatePassword(id: string, passwordHash: string): Promise<boolean> {
+    try {
+      const result = await this.userModel.findByIdAndUpdate(
+        id,
+        { passwordHash },
+        { new: true },
+      );
+      return result !== null;
+    } catch (error: unknown) {
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = 'Unknown error';
+      }
+      this.logger.error('Error in updatePassword: ' + errorMessage);
+      return false;
+    }
+  }
+
+  /**
+   * Обновляет email пользователя по id.
+   * Если успешно — возвращает true.
+   * Если пользователь не найден или ошибка — возвращает false.
+   */
+  async updateEmail(id: string, email: string): Promise<boolean> {
+    try {
+      const result = await this.userModel.findByIdAndUpdate(
+        id,
+        { email },
+        { new: true },
+      );
+      return result !== null;
+    } catch (error: unknown) {
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = 'Unknown error';
+      }
+      this.logger.error('Error in updateEmail: ' + errorMessage);
+      return false;
+    }
+  }
+
+  /**
+   * Обновляет username пользователя по id.
+   * Если успешно — возвращает true.
+   * Если пользователь не найден или ошибка — возвращает false.
+   */
+  async updateUsername(id: string, username: string): Promise<boolean> {
+    try {
+      const result = await this.userModel.findByIdAndUpdate(
+        id,
+        { username },
+        { new: true },
+      );
+      return result !== null;
+    } catch (error: unknown) {
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = 'Unknown error';
+      }
+      this.logger.error('Error in updateUsername: ' + errorMessage);
+      return false;
+    }
+  }
 }

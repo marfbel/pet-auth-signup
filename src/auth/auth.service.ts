@@ -5,6 +5,7 @@ import { RegistrantHashDto } from './dto/registrant-hash.dto';
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { RedisDBTokenService } from './redis.service';
+import { JwtPayloadDto } from './dto/jwt-payload.dto';
 
 
 
@@ -14,8 +15,17 @@ export class AuthService {
   constructor(
     private readonly tokenService: RedisDBTokenService
   ) { }
+  /**
+   * Хеширует пароль с использованием bcrypt.
+   * @param password - пароль в plain text
+   * @returns хешированный пароль
+   */
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
+  }
+
   async hashRegistrant(registrant: RegistrantDto): Promise<RegistrantHashDto> {
-    const passwordHash = await bcrypt.hash(registrant.password, 10);
+    const passwordHash = await this.hashPassword(registrant.password);
 
     return {
       email: registrant.email,
@@ -23,6 +33,8 @@ export class AuthService {
       passwordHash,
     };
   }
+
+
 
   /**
    * Проверяет соответствие пароля хэшу.
@@ -39,20 +51,19 @@ export class AuthService {
     return randomBytes(length).toString('base64url');
   }
 
-  generateAccessToken(payload: object): string {
+  generateAccessToken(payload: JwtPayloadDto): string {
     const accessSecret = process.env.JWT_ACCESS_SECRET;
     if (!accessSecret) throw new Error('JWT_ACCESS_SECRET is not defined');
 
     return jwt.sign(payload, accessSecret, { expiresIn: '15m' });
   }
 
-  generateRefreshToken(payload: object): string {
+  generateRefreshToken(payload: JwtPayloadDto): string {
     const refreshSecret = process.env.JWT_REFRESH_SECRET;
     if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET is not defined');
 
     return jwt.sign(payload, refreshSecret, { expiresIn: '7d' });
   }
-
 
 
   /**
@@ -73,6 +84,28 @@ export class AuthService {
     }
   }
 
+
+  /**
+   * Верифицирует access токен.
+   * Проверяет подпись по JWT_ACCESS_SECRET и время жизни токена.
+   * @param accessToken - JWT токен для проверки
+   * @returns payload токена если валидный, false в противном случае
+   */
+  verifyAccessToken(accessToken: string): JwtPayloadDto | false {
+    try {
+      const accessSecret = process.env.JWT_ACCESS_SECRET;
+      if (!accessSecret) {
+        console.error('JWT_ACCESS_SECRET is not defined');
+        return false;
+      }
+
+      const payload = jwt.verify(accessToken, accessSecret) as JwtPayloadDto
+      return payload;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Обновляет accessToken по refreshToken.
    * Проверяет сессию в Redis - если есть и TTL не истёк, генерирует новый accessToken.
@@ -87,7 +120,7 @@ export class AuthService {
         return null;
       }
 
-      const payload = {
+      const payload: JwtPayloadDto = {
         userId: session.userId,
         sessionId: session.sessionId,
       };
