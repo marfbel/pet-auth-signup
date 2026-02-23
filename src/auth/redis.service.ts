@@ -55,7 +55,7 @@ export class RedisDBTokenService implements OnModuleDestroy {
   }
 
   /**
-   * Удаляет сессию из Redis (при логауте).
+   * Удаляет сессию из Redis .
    */
   async deleteSession(refreshToken: string): Promise<void> {
     await this.client.del(refreshToken);

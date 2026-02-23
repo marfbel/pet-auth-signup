@@ -119,6 +119,30 @@ export class EntrypointController {
     return this.entrypointService.refreshTokens(body.refreshToken);
   }
 
+  /**
+   * POST /entrypoint/rotate-tokens
+   * Ротация обоих токенов (access и refresh) по refresh token
+   * @body { refreshToken: string }
+   * @returns { accessToken: string } - новый access token
+   */
+  @Post('rotate-tokens')
+  async rotateTokens(
+    @Body() body: { refreshToken: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { newAccessToken, newRefreshToken } = await this.entrypointService.rotateTokens(body.refreshToken);
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      path: '/entrypoint/rotate-tokens',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return { accessToken: newAccessToken };
+  }
+
 
 
 

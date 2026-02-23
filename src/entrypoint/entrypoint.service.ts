@@ -118,13 +118,23 @@ export class EntrypointService {
 
 
   async changePassword(changePasswordDto: ChangePasswordDto) {
-    const { accessToken, newPassword } = changePasswordDto
-    
+    const { accessToken, oldPassword, newPassword } = changePasswordDto
+
     const payload = this.authService.verifyAccessToken(accessToken)
     if (!payload) {
       throw new UnauthorizedException('Invalid or expired access token');
     }
     const userId = payload.userId
+    const userObj = await this.usersService.findById(userId)
+    if (!userObj) {
+      throw new NotFoundException('User not found');
+    }
+    const hashOldPassword = userObj.passwordHash
+    const verifyResult = await this.authService.verifyPassword(oldPassword, hashOldPassword)
+    if (!verifyResult) {
+      throw new UnauthorizedException('Old password is incorrect');
+    }
+    
     const passwordHash = await this.authService.hashPassword(newPassword)
     const passwordChangeResult = await this.usersService.updatePassword(userId, passwordHash)
     if (!passwordChangeResult) {
@@ -135,18 +145,18 @@ export class EntrypointService {
 
   async changeEmail(changeEmailDto: ChangeEmailDto) {
     const { accessToken, newEmail } = changeEmailDto
-    
+
     const payload = this.authService.verifyAccessToken(accessToken)
     if (!payload) {
       throw new UnauthorizedException('Invalid or expired access token');
     }
     const userId = payload.userId
-    
+
     const emailExists = await this.usersService.checkEmailExists(newEmail);
     if (emailExists) {
       throw new ConflictException('Email is already in use');
     }
-    
+
     const emailChangeResult = await this.usersService.updateEmail(userId, newEmail)
     if (!emailChangeResult) {
       throw new InternalServerErrorException('Failed to update email');
@@ -156,18 +166,18 @@ export class EntrypointService {
 
   async changeUsername(changeUsernameDto: ChangeUsernameDto) {
     const { accessToken, newUsername } = changeUsernameDto
-    
+
     const payload = this.authService.verifyAccessToken(accessToken)
     if (!payload) {
       throw new UnauthorizedException('Invalid or expired access token');
     }
     const userId = payload.userId
-    
+
     const usernameExists = await this.usersService.checkUsernameExists(newUsername);
     if (usernameExists) {
       throw new ConflictException('Username is already in use');
     }
-    
+
     const usernameChangeResult = await this.usersService.updateUsername(userId, newUsername)
     if (!usernameChangeResult) {
       throw new InternalServerErrorException('Failed to update username');
@@ -239,6 +249,10 @@ export class EntrypointService {
     return this.authService.deleteAllUserSessions(userId);
   }
 
+
+
+
+
   /**
    * Обновляет access token по refresh token.
    * Проверяет сессию в Redis и генерирует новый access token.
@@ -251,6 +265,20 @@ export class EntrypointService {
       throw new UnauthorizedException('Invalid refresh token');
     }
     return { accessToken: newAccessToken };
+  }
+
+  /**
+   * Ротирует оба токена (access и refresh) по refresh token.
+   * Удаляет старую сессию из Redis и создаёт новую с новыми токенами.
+   * @param refreshToken - текущий refresh токен
+   * @returns объект с новыми accessToken и refreshToken
+   */
+  async rotateTokens(refreshToken: string): Promise<{ newAccessToken: string; newRefreshToken: string }> {
+    const result = await this.authService.rotateTokens(refreshToken);
+    if (!result) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    return result;
   }
 
 }

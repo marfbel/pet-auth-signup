@@ -6,6 +6,7 @@ import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { RedisDBTokenService } from './redis.service';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
+import { access } from 'fs';
 
 
 
@@ -128,6 +129,46 @@ export class AuthService {
       return this.generateAccessToken(payload);
     } catch {
       return null;
+    }
+  }
+
+  async rotateTokens(refreshToken: string) {
+    const session = await this.tokenService.getSession(refreshToken)
+    if (!session) {
+      return false;
+    }
+
+    const payload: JwtPayloadDto = {
+      userId: session.userId,
+      sessionId: session.sessionId,
+    };
+
+    try {
+      await this.tokenService.deleteSession(refreshToken)
+    } catch (error) {
+      return false
+    }
+
+    let newRefreshToken: string;
+    let newAccessToken: string;
+
+    try {
+      newRefreshToken = this.generateRefreshToken(payload);
+      newAccessToken = this.generateAccessToken(payload);
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+
+    await this.tokenService.saveSession(
+      newRefreshToken,
+      payload.userId,
+      payload.sessionId
+    );
+
+    return{
+      newAccessToken,
+      newRefreshToken
     }
   }
 
