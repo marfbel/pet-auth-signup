@@ -238,7 +238,6 @@ export class EntrypointService {
   }
 
 
-
   /**
    * Удаляет все сессии пользователя из Redis по userId (logout со всех устройств).
    * Пользователь остаётся в MongoDB.
@@ -248,9 +247,6 @@ export class EntrypointService {
   async userLogoutAll(userId: string): Promise<number> {
     return this.authService.deleteAllUserSessions(userId);
   }
-
-
-
 
 
   /**

@@ -13,7 +13,6 @@ import { ChangeUsernameDto } from './dto/change-username.dto';
 export class EntrypointController {
   constructor(
     private readonly entrypointService: EntrypointService,
-    private readonly usersService: UsersService,
   ) { }
 
   /**
@@ -175,24 +174,6 @@ export class EntrypointController {
     return this.entrypointService.userDelete(body.refreshToken);
   }
 
-
-  /**
-   * DELETE /entrypoint/:id
-   * Удаление пользователя по id
-   */
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.usersService.deleteUser(id);
-  }
-
-  /**
-   * GET /entrypoint/user/:username
-   * Поиск пользователя по имени пользователя
-   */
-  @Get('user/:username')
-  async findByUsername(@Param('username') username: string) {
-    return this.usersService.findByUsername(username);
-  }
 
   /**
    * GET /entrypoint/alldata

@@ -3,10 +3,9 @@ import * as bcrypt from 'bcrypt';
 import { RegistrantDto } from './dto/registrant.dto';
 import { RegistrantHashDto } from './dto/registrant-hash.dto';
 import { randomBytes } from 'crypto';
-import jwt from 'jsonwebtoken';
-import { RedisDBTokenService } from './redis.service';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
-import { access } from 'fs';
+import { SecurityService } from './encapsulated/security/security.service';
+import { TokenService } from './encapsulated/token/token.service';
 
 
 
@@ -14,28 +13,22 @@ import { access } from 'fs';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly tokenService: RedisDBTokenService
+    private readonly securityService: SecurityService,
+    private readonly tokenService: TokenService,
   ) { }
+
   /**
    * Хеширует пароль с использованием bcrypt.
    * @param password - пароль в plain text
    * @returns хешированный пароль
    */
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+    return this.securityService.hashPassword(password)
   }
 
   async hashRegistrant(registrant: RegistrantDto): Promise<RegistrantHashDto> {
-    const passwordHash = await this.hashPassword(registrant.password);
-
-    return {
-      email: registrant.email,
-      username: registrant.username,
-      passwordHash,
-    };
+    return this.hashRegistrant(registrant)
   }
-
-
 
   /**
    * Проверяет соответствие пароля хэшу.
@@ -44,26 +37,21 @@ export class AuthService {
    * @returns true если пароли совпадают, false в противном случае
    */
   async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(plainPassword, hashedPassword);
+    return this.securityService.verifyPassword(plainPassword, hashedPassword)
   }
 
   generateCompactSessionId(length = 16): string {
-    // 16 байт → 22 символа в base64url (без +, /, =)
-    return randomBytes(length).toString('base64url');
+    return this.securityService.generateCompactSessionId(length)
   }
 
-  generateAccessToken(payload: JwtPayloadDto): string {
-    const accessSecret = process.env.JWT_ACCESS_SECRET;
-    if (!accessSecret) throw new Error('JWT_ACCESS_SECRET is not defined');
 
-    return jwt.sign(payload, accessSecret, { expiresIn: '15m' });
+
+  generateAccessToken(payload: JwtPayloadDto): string {
+    return this.tokenService.generateAccessToken(payload)
   }
 
   generateRefreshToken(payload: JwtPayloadDto): string {
-    const refreshSecret = process.env.JWT_REFRESH_SECRET;
-    if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET is not defined');
-
-    return jwt.sign(payload, refreshSecret, { expiresIn: '7d' });
+    return this.tokenService.generateRefreshToken(payload)
   }
 
 
@@ -77,12 +65,11 @@ export class AuthService {
     sessionId: string,
     refreshToken: string,
   ): Promise<boolean> {
-    try {
-      await this.tokenService.saveSession(refreshToken, userId, sessionId);
-      return true;
-    } catch {
-      return false;
-    }
+    return this.tokenService.saveRefreshToken(
+      userId,
+      sessionId,
+      refreshToken
+    )
   }
 
 
@@ -93,18 +80,7 @@ export class AuthService {
    * @returns payload токена если валидный, false в противном случае
    */
   verifyAccessToken(accessToken: string): JwtPayloadDto | false {
-    try {
-      const accessSecret = process.env.JWT_ACCESS_SECRET;
-      if (!accessSecret) {
-        console.error('JWT_ACCESS_SECRET is not defined');
-        return false;
-      }
-
-      const payload = jwt.verify(accessToken, accessSecret) as JwtPayloadDto
-      return payload;
-    } catch {
-      return false;
-    }
+    return this.tokenService.verifyAccessToken(accessToken)
   }
 
   /**
@@ -114,62 +90,11 @@ export class AuthService {
    * @returns accessToken или null
    */
   async refreshAccessToken(refreshToken: string): Promise<string | null> {
-    try {
-      const session = await this.tokenService.getSession(refreshToken);
-
-      if (!session) {
-        return null;
-      }
-
-      const payload: JwtPayloadDto = {
-        userId: session.userId,
-        sessionId: session.sessionId,
-      };
-
-      return this.generateAccessToken(payload);
-    } catch {
-      return null;
-    }
+    return this.tokenService.refreshAccessToken(refreshToken)
   }
 
   async rotateTokens(refreshToken: string) {
-    const session = await this.tokenService.getSession(refreshToken)
-    if (!session) {
-      return false;
-    }
-
-    const payload: JwtPayloadDto = {
-      userId: session.userId,
-      sessionId: session.sessionId,
-    };
-
-    try {
-      await this.tokenService.deleteSession(refreshToken)
-    } catch (error) {
-      return false
-    }
-
-    let newRefreshToken: string;
-    let newAccessToken: string;
-
-    try {
-      newRefreshToken = this.generateRefreshToken(payload);
-      newAccessToken = this.generateAccessToken(payload);
-    } catch (error) {
-      console.error(error);
-      return false;
-    }
-
-    await this.tokenService.saveSession(
-      newRefreshToken,
-      payload.userId,
-      payload.sessionId
-    );
-
-    return{
-      newAccessToken,
-      newRefreshToken
-    }
+    return this.tokenService.rotateTokens(refreshToken)
   }
 
   /**
@@ -177,12 +102,7 @@ export class AuthService {
    * @returns true - успех, false - ошибка
    */
   async logout(refreshToken: string): Promise<boolean> {
-    try {
-      await this.tokenService.deleteSession(refreshToken);
-      return true;
-    } catch {
-      return false;
-    }
+    return this.tokenService.logout(refreshToken)
   }
 
   /**
@@ -190,12 +110,7 @@ export class AuthService {
    * @returns userId или null если сессия не найдена
    */
   async getUserIdByRefreshToken(refreshToken: string): Promise<string | null> {
-    try {
-      const session = await this.tokenService.getSession(refreshToken);
-      return session?.userId ?? null;
-    } catch {
-      return null;
-    }
+    return this.tokenService.getUserIdByRefreshToken(refreshToken)
   }
 
   /**
@@ -213,8 +128,7 @@ export class AuthService {
    * @returns количество удалённых сессий
    */
   async deleteAllUserSessions(userId: string): Promise<number> {
-    return this.tokenService.deleteSessionsByUserId(userId);
+    return this.tokenService.deleteAllUserSessions(userId)
   }
-
 
 }
