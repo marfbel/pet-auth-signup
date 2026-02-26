@@ -12,6 +12,8 @@ import { ConflictException } from '@nestjs/common';
 import { InternalServerErrorException } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
+import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
+import { LoginFailedResponseDto, LoginSuccessResponseDto } from './dto/login-response.dto';
 
 export interface AllDataResult {
   users: { id: string; email: string; username: string; createdAt: Date }[];
@@ -72,7 +74,18 @@ export class EntrypointService {
     }
   }
 
-  async userLogin(logApi: CreateLoginDto) {
+  /**
+   * Аутентифицирует пользователя по email и паролю.
+   * При успехе создаёт новую сессию и возвращает токены.
+   * При неверном пароле увеличивает счётчик неудачных попыток входа.
+   * @param logApi - DTO с email и паролем пользователя
+   * @returns Promise с результатом операции: { success: true, refreshToken, accessToken } при успехе,
+   *          или { success: false, attemptsLeft, retryAfter } при неверном пароле
+   * @throws NotFoundException - пользователь с указанным email не найден
+   * @throws InternalServerErrorException - ошибка при создании сессии в Redis
+   */
+  async userLogin(logApi: CreateLoginDto): 
+  Promise<LoginFailedResponseDto | LoginSuccessResponseDto> {
     const email = logApi.email
     const password = logApi.password
 
@@ -80,15 +93,35 @@ export class EntrypointService {
     if (!userDataByEmail) {
       throw new NotFoundException('Email not found');
     }
+    const userId = userDataByEmail.id
 
     const passwordHash = userDataByEmail.passwordHash
 
     const verifyResult = await this.authService.verifyPassword(password, passwordHash)
     if (!verifyResult) {
-      throw new UnauthorizedException('Password is incorrect');
+
+      const verifyAttemptResult = await this.authService.incrementAttempts(userId)
+
+      if (verifyAttemptResult) {
+        const attemptLeft = await this.authService.getRemainingAttempts(userId)
+        const retryAfter = await this.authService.getRemainingTtl(userId)
+        return {
+          success: false,
+          attemptsLeft: attemptLeft,
+          retryAfter: retryAfter
+        }
+      } else {
+        const attemptLeft = await this.authService.getRemainingAttempts(userId)
+        const retryAfter = await this.authService.getRemainingTtl(userId)
+        return {
+          success: false,
+          attemptsLeft: attemptLeft,
+          retryAfter: retryAfter
+        }
+      }
     }
 
-    const userId = userDataByEmail.id
+
 
     const sessionId = this.authService.generateCompactSessionId()
 
@@ -111,13 +144,25 @@ export class EntrypointService {
 
 
     return {
+      success: true,
       refreshToken,
       accessToken
     }
   }
 
 
-  async changePassword(changePasswordDto: ChangePasswordDto) {
+  /**
+   * Изменяет пароль пользователя.
+   * Верифицирует старый пароль и обновляет его на новый.
+   * При неверном пароле увеличивает счётчик неудачных попыток входа.
+   * @param changePasswordDto - DTO с токеном доступа, старым и новым паролем
+   * @returns Promise с результатом операции: { success: true } при успехе,
+   *          или { success: false, attemptsLeft, retryAfter } при неверном пароле
+   * @throws UnauthorizedException - невалидный или истёкший токен доступа
+   * @throws NotFoundException - пользователь не найден
+   * @throws InternalServerErrorException - ошибка обновления пароля в базе данных
+   */
+  async changePassword(changePasswordDto: ChangePasswordDto): Promise<ChangePasswordResponseDto> {
     const { accessToken, oldPassword, newPassword } = changePasswordDto
 
     const payload = this.authService.verifyAccessToken(accessToken)
@@ -132,18 +177,49 @@ export class EntrypointService {
     const hashOldPassword = userObj.passwordHash
     const verifyResult = await this.authService.verifyPassword(oldPassword, hashOldPassword)
     if (!verifyResult) {
-      throw new UnauthorizedException('Old password is incorrect');
+
+      const verifyAttemptResult = await this.authService.incrementAttempts(userId)
+
+      if (verifyAttemptResult) {
+        const attemptLeft = await this.authService.getRemainingAttempts(userId)
+        const retryAfter = await this.authService.getRemainingTtl(userId)
+        return {
+          success: false,
+          attemptsLeft: attemptLeft,
+          retryAfter: retryAfter
+        }
+      } else {
+        const attemptLeft = await this.authService.getRemainingAttempts(userId)
+        const retryAfter = await this.authService.getRemainingTtl(userId)
+        return {
+          success: false,
+          attemptsLeft: attemptLeft,
+          retryAfter: retryAfter
+        }
+      }
     }
-    
+
     const passwordHash = await this.authService.hashPassword(newPassword)
     const passwordChangeResult = await this.usersService.updatePassword(userId, passwordHash)
     if (!passwordChangeResult) {
       throw new InternalServerErrorException('Failed to update password');
     }
-    return true
+    await this.authService.resetAttempts(userId)
+    return {
+      success: true
+    }
   }
 
-  async changeEmail(changeEmailDto: ChangeEmailDto) {
+  /**
+   * Изменяет email пользователя.
+   * Проверяет доступность нового email перед обновлением.
+   * @param changeEmailDto - DTO с токеном доступа и новым email
+   * @returns Promise<boolean> - true при успешном обновлении
+   * @throws UnauthorizedException - невалидный или истёкший токен доступа
+   * @throws ConflictException - email уже используется другим пользователем
+   * @throws InternalServerErrorException - ошибка обновления email в базе данных
+   */
+  async changeEmail(changeEmailDto: ChangeEmailDto): Promise<boolean> {
     const { accessToken, newEmail } = changeEmailDto
 
     const payload = this.authService.verifyAccessToken(accessToken)
@@ -164,7 +240,16 @@ export class EntrypointService {
     return true
   }
 
-  async changeUsername(changeUsernameDto: ChangeUsernameDto) {
+  /**
+   * Изменяет username пользователя.
+   * Проверяет доступность нового username перед обновлением.
+   * @param changeUsernameDto - DTO с токеном доступа и новым username
+   * @returns Promise<boolean> - true при успешном обновлении
+   * @throws UnauthorizedException - невалидный или истёкший токен доступа
+   * @throws ConflictException - username уже используется другим пользователем
+   * @throws InternalServerErrorException - ошибка обновления username в базе данных
+   */
+  async changeUsername(changeUsernameDto: ChangeUsernameDto): Promise<boolean> {
     const { accessToken, newUsername } = changeUsernameDto
 
     const payload = this.authService.verifyAccessToken(accessToken)
@@ -193,7 +278,6 @@ export class EntrypointService {
    */
   async userLogout(refreshToken: string): Promise<boolean> {
     return this.authService.logout(refreshToken);
-
   }
 
   /**

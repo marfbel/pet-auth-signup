@@ -43,27 +43,23 @@ export class EntrypointController {
     @Body() createLoginDto: CreateLoginDto,
     @Res({ passthrough: true }) res: Response
   ) {
-   const tokenObj = await this.entrypointService.userLogin(createLoginDto)
-    // if (!tokenObj) return false
-    const { accessToken, refreshToken } = tokenObj
-
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      path: '/entrypoint/refresh',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return { accessToken };
+   const responseObj = await this.entrypointService.userLogin(createLoginDto)
+    if (responseObj.success) {
+      const { accessToken, refreshToken } = responseObj
+  
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        path: '/entrypoint/refresh',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+  
+      return { accessToken };
+    }
+    return responseObj
   }
 
-  /**
-   * POST /entrypoint/change-password
-   * Смена пароля пользователя
-   * @body { accessToken: string, newPassword: string }
-   * @returns true - успех
-   */
   @Post('change-password')
   async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
     return this.entrypointService.changePassword(changePasswordDto);

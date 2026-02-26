@@ -26,8 +26,13 @@ export class AuthService {
     return this.securityService.hashPassword(password)
   }
 
+  /**
+   * Хеширует данные регистранта, преобразуя пароль в хэш.
+   * @param registrant - DTO с данными регистранта (email, username, password)
+   * @returns DTO с хешированным паролем
+   */
   async hashRegistrant(registrant: RegistrantDto): Promise<RegistrantHashDto> {
-    return this.hashRegistrant(registrant)
+    return this.securityService.hashRegistrant(registrant)
   }
 
   /**
@@ -40,16 +45,75 @@ export class AuthService {
     return this.securityService.verifyPassword(plainPassword, hashedPassword)
   }
 
+  /**
+   * Генерирует компактный идентификатор сессии в формате base64url.
+   * @param length - количество байт (по умолчанию 16)
+   * @returns строка в base64url (22 символа для 16 байт)
+   */
   generateCompactSessionId(length = 16): string {
     return this.securityService.generateCompactSessionId(length)
   }
 
 
+  /**
+   * Увеличивает счётчик неудачных попыток входа.
+   * @param userId - идентификатор пользователя
+   * @returns true если лимит не превышен, false в противном случае
+   */
+  async incrementAttempts(userId: string): Promise<boolean> {
+    return this.securityService.incrementAttempts(userId);
+  }
 
+  /**
+   * Сбрасывает счётчик неудачных попыток входа.
+   * @param userId - идентификатор пользователя
+   */
+  async resetAttempts(userId: string): Promise<void> {
+    return this.securityService.resetAttempts(userId);
+  }
+
+  /**
+   * Возвращает текущее количество неудачных попыток входа.
+   * @param userId - идентификатор пользователя
+   * @returns количество попыток или 0 если ключ не существует
+   */
+  async getAttempts(userId: string): Promise<number> {
+    return this.securityService.getAttempts(userId);
+  }
+
+  /**
+   * Возвращает оставшееся время до сброса попыток в секундах.
+   * @param userId - идентификатор пользователя
+   * @returns TTL в секундах или -1 если ключ не существует
+   */
+  async getRemainingTtl(userId: string): Promise<number> {
+    return this.securityService.getRemainingTtl(userId);
+  }
+
+
+  /**
+  * Возвращает количество оставшихся попыток входа.
+  * @param userId - идентификатор пользователя
+  * @returns количество оставшихся попыток (от 0 до MAX_ATTEMPTS)
+  */
+  async getRemainingAttempts(userId: string): Promise<number> {
+    return this.securityService.getRemainingAttempts(userId);
+  }
+
+  /**
+   * Генерирует JWT access token для аутентификации запросов.
+   * @param payload - данные для токена (userId, sessionId)
+   * @returns JWT строка access токена
+   */
   generateAccessToken(payload: JwtPayloadDto): string {
     return this.tokenService.generateAccessToken(payload)
   }
 
+  /**
+   * Генерирует JWT refresh token для обновления access токена.
+   * @param payload - данные для токена (userId, sessionId)
+   * @returns JWT строка refresh токена
+   */
   generateRefreshToken(payload: JwtPayloadDto): string {
     return this.tokenService.generateRefreshToken(payload)
   }
@@ -93,6 +157,12 @@ export class AuthService {
     return this.tokenService.refreshAccessToken(refreshToken)
   }
 
+  /**
+   * Обновляет пару токенов (access и refresh) с ротацией сессии.
+   * Используется для безопасного обновления токенов без повторной аутентификации.
+   * @param refreshToken - текущий refresh токен
+   * @returns объект с новыми access и refresh токенами
+   */
   async rotateTokens(refreshToken: string) {
     return this.tokenService.rotateTokens(refreshToken)
   }
