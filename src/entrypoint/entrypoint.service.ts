@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateRegistrantDto } from './dto/create-registrant.dto';
 import { AuthService } from '../auth/auth.service';
 import { UsersService } from 'src/users/users.service';
-import { JwtPayloadDto } from './dto/jwt-payload.dto';
+import { JwtPayloadDto } from '../auth/dto/jwt-payload.dto';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeEmailDto } from './dto/change-email.dto';
