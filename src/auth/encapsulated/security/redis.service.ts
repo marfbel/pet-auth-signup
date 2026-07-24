@@ -1,4 +1,5 @@
-import { Injectable, OnModuleDestroy, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { RedisService } from '@liaoliaots/nestjs-redis';
 import Redis from 'ioredis';
 
 /**
@@ -24,21 +25,14 @@ export class TooManyRequestsException extends HttpException {
  * Реализует механизм блокировки после превышения лимита неудачных попыток.
  */
 @Injectable()
-export class LoginAttemptsService implements OnModuleDestroy {
+export class LoginAttemptsService {
   private readonly client: Redis;
   private readonly KEY_PREFIX = 'login_attempts:';
   private readonly MAX_ATTEMPTS = 5;
   private readonly TTL_SECONDS = 15 * 60; // 15 минут
 
-  constructor() {
-    this.client = new Redis({
-      host: 'localhost',
-      port: 6379,
-    });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.client.quit();
+  constructor(redisService: RedisService) {
+    this.client = redisService.getOrThrow();
   }
 
   /**

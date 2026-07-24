@@ -1,4 +1,5 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { RedisService } from '@liaoliaots/nestjs-redis';
 import Redis from 'ioredis';
 
 export interface SessionData {
@@ -13,19 +14,12 @@ export interface AllSessionsResult {
 }
 
 @Injectable()
-export class RedisDBTokenService implements OnModuleDestroy {
+export class RedisDBTokenService {
   private readonly client: Redis;
   private readonly TTL_SECONDS = 60 * 60 * 24 * 7; // 7 дней
 
-  constructor() {
-    this.client = new Redis({
-      host: 'localhost',
-      port: 6379,
-    });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.client.quit();
+  constructor(redisService: RedisService) {
+    this.client = redisService.getOrThrow();
   }
 
   /**
