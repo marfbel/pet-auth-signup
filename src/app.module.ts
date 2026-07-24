@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,13 +8,12 @@ import { PromocodesModule } from './promocodes/promocodes.module';
 
 import { EntrypointModule } from './entrypoint/entrypoint.module';
 import { DatabaseModule } from './database/database.module';
+import { ConfigModule } from './config/config.module';
 
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true, // делает ConfigService глобально доступным
-    }),
+    ConfigModule,
     DatabaseModule,
     UsersModule,
     AuthModule,

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RedisDBTokenService } from './redis.service';
 import jwt from 'jsonwebtoken';
 
@@ -10,18 +11,19 @@ import { JwtPayloadDto } from 'src/auth/dto/jwt-payload.dto';
 export class TokenService {
     constructor(
         private readonly redisDBTokenService: RedisDBTokenService,
+        private readonly configService: ConfigService,
     ) { }
 
     
       generateAccessToken(payload: JwtPayloadDto): string {
-        const accessSecret = process.env.JWT_ACCESS_SECRET;
+        const accessSecret = this.configService.get<string>('jwt.accessSecret');
         if (!accessSecret) throw new Error('JWT_ACCESS_SECRET is not defined');
     
         return jwt.sign(payload, accessSecret, { expiresIn: '15m' });
       }
     
       generateRefreshToken(payload: JwtPayloadDto): string {
-        const refreshSecret = process.env.JWT_REFRESH_SECRET;
+        const refreshSecret = this.configService.get<string>('jwt.refreshSecret');
         if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET is not defined');
     
         return jwt.sign(payload, refreshSecret, { expiresIn: '7d' });
@@ -55,7 +57,7 @@ export class TokenService {
        */
       verifyAccessToken(accessToken: string): JwtPayloadDto | false {
         try {
-          const accessSecret = process.env.JWT_ACCESS_SECRET;
+          const accessSecret = this.configService.get<string>('jwt.accessSecret');
           if (!accessSecret) {
             console.error('JWT_ACCESS_SECRET is not defined');
             return false;
