@@ -162,14 +162,9 @@ export class EntrypointService {
    * @throws NotFoundException - пользователь не найден
    * @throws InternalServerErrorException - ошибка обновления пароля в базе данных
    */
-  async changePassword(changePasswordDto: ChangePasswordDto): Promise<ChangePasswordResponseDto> {
-    const { accessToken, oldPassword, newPassword } = changePasswordDto
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<ChangePasswordResponseDto> {
+    const { oldPassword, newPassword } = changePasswordDto
 
-    const payload = this.authService.verifyAccessToken(accessToken)
-    if (!payload) {
-      throw new UnauthorizedException('Invalid or expired access token');
-    }
-    const userId = payload.userId
     const userObj = await this.usersService.findById(userId)
     if (!userObj) {
       throw new NotFoundException('User not found');
@@ -219,14 +214,8 @@ export class EntrypointService {
    * @throws ConflictException - email уже используется другим пользователем
    * @throws InternalServerErrorException - ошибка обновления email в базе данных
    */
-  async changeEmail(changeEmailDto: ChangeEmailDto): Promise<boolean> {
-    const { accessToken, newEmail } = changeEmailDto
-
-    const payload = this.authService.verifyAccessToken(accessToken)
-    if (!payload) {
-      throw new UnauthorizedException('Invalid or expired access token');
-    }
-    const userId = payload.userId
+  async changeEmail(userId: string, changeEmailDto: ChangeEmailDto): Promise<boolean> {
+    const { newEmail } = changeEmailDto
 
     const emailExists = await this.usersService.checkEmailExists(newEmail);
     if (emailExists) {
@@ -249,14 +238,8 @@ export class EntrypointService {
    * @throws ConflictException - username уже используется другим пользователем
    * @throws InternalServerErrorException - ошибка обновления username в базе данных
    */
-  async changeUsername(changeUsernameDto: ChangeUsernameDto): Promise<boolean> {
-    const { accessToken, newUsername } = changeUsernameDto
-
-    const payload = this.authService.verifyAccessToken(accessToken)
-    if (!payload) {
-      throw new UnauthorizedException('Invalid or expired access token');
-    }
-    const userId = payload.userId
+  async changeUsername(userId: string, changeUsernameDto: ChangeUsernameDto): Promise<boolean> {
+    const { newUsername } = changeUsernameDto
 
     const usernameExists = await this.usersService.checkUsernameExists(newUsername);
     if (usernameExists) {

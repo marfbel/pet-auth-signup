@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Res, UseGuards, Req } from '@nestjs/common';
+import type { Response, Request } from 'express';
 import { EntrypointService } from './entrypoint.service';
 import { CreateRegistrantDto } from './dto/create-registrant.dto';
 import { UsersService } from '../users/users.service';
@@ -7,6 +7,7 @@ import { CreateLoginDto } from './dto/create-login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeEmailDto } from './dto/change-email.dto';
 import { ChangeUsernameDto } from './dto/change-username.dto';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 
 @Controller('entrypoint')
@@ -59,32 +60,38 @@ export class EntrypointController {
     }
     return responseObj
   }
-
+  
+  @UseGuards(JwtGuard)
   @Post('change-password')
-  async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
-    return this.entrypointService.changePassword(changePasswordDto);
+  async changePassword(@Req() req: Request, @Body() changePasswordDto: ChangePasswordDto) {
+    const userId = (req as any).user.userId;
+    return this.entrypointService.changePassword(userId, changePasswordDto);
   }
 
   /**
    * POST /entrypoint/change-email
    * Смена email пользователя
-   * @body { accessToken: string, newEmail: string }
+   * @body { newEmail: string }
    * @returns true - успех
    */
+  @UseGuards(JwtGuard)
   @Post('change-email')
-  async changeEmail(@Body() changeEmailDto: ChangeEmailDto) {
-    return this.entrypointService.changeEmail(changeEmailDto);
+  async changeEmail(@Req() req: Request, @Body() changeEmailDto: ChangeEmailDto) {
+    const userId = (req as any).user.userId;
+    return this.entrypointService.changeEmail(userId, changeEmailDto);
   }
 
   /**
    * POST /entrypoint/change-username
    * Смена username пользователя
-   * @body { accessToken: string, newUsername: string }
+   * @body { newUsername: string }
    * @returns true - успех
    */
+  @UseGuards(JwtGuard)
   @Post('change-username')
-  async changeUsername(@Body() changeUsernameDto: ChangeUsernameDto) {
-    return this.entrypointService.changeUsername(changeUsernameDto);
+  async changeUsername(@Req() req: Request, @Body() changeUsernameDto: ChangeUsernameDto) {
+    const userId = (req as any).user.userId;
+    return this.entrypointService.changeUsername(userId, changeUsernameDto);
   }
 
 
